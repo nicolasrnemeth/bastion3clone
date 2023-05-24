@@ -1,0 +1,1 @@
+{"boosting_type": "goss", "scale_pos_weight": 0.7763225241567875, "learning_rate": 0.09563955447021945, "num_leaves": 28, "max_depth": 17, "min_child_samples": 16, "max_bin": 262, "colsample_bytree": 0.6232823185587957, "min_child_weight": 0.0008879186215960854, "reg_alpha": 0.0, "reg_lambda": 0.003075450743560387, "drop_rate": 0.16451581676732224, "max_drop": 1}
