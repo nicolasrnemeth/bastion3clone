@@ -18,10 +18,10 @@ setuptools.setup(
     description=short_description,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/univieCUBE/bastion3clone",
-    download_url="https://github.com/univieCUBE/bastion3clone/archive/refs/tags/alpha-v1.0.0.tar.gz",
+    url="https://github.com/nicolasrnemeth/bastion3clone",
+    download_url="https://github.com/nicolasrnemeth/bastion3clone/archive/refs/tags/beta.tar.gz",
     project_urls={
-        "Bug Tracker": "https://github.com/univieCUBE/bastion3clone/issues",
+        "Bug Tracker": "https://github.com/nicolasrnemeth/bastion3clone/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
