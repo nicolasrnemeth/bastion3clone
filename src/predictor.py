@@ -273,4 +273,4 @@ def evaluation_metrics(file_path: str, y_pred: List[int], y_true: List[int], y_p
 
     # Save metrics to a JSON file
     with open(file_path + '_metrics.json', 'w') as ofile:
-        json.dump(metrics_dict, ofile)
+        json.dump(metrics_dict, ofile, indent=4)
