@@ -8,6 +8,7 @@ import numpy as np
 # Parallelize feature computation and prediction
 from multiprocessing import Process, Manager
 from typing import Tuple, List, Callable
+from sklearn import metrics 
 
 from .sequtils import read_fasta
 from .encoders.encode import encode
@@ -24,7 +25,7 @@ MODEL_NAMES = {"G1": "sequence-model", "G2": "amino-acid-property-model", "G3": 
 
 
 def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str="results.txt", 
-              model_: str="G1G2G3", seq_range: Tuple[int, int]=None) -> None:
+              model_: str="G1G2G3", seq_range: Tuple[int, int]=None, true_labels_file_name: str=None) -> None:
     """
         Computes the prediction for protein sequences and writes the results to a .txt file
         
@@ -176,7 +177,7 @@ def load_models() -> Tuple[object, object, object]:
 
 
 
-def write_results(ofile_path: str, probabilities: np.ndarray, model_: str) -> None:
+def write_results(ofile_path: str, probabilities: np.ndarray, model_: str, true_labels: List[int]=None) -> None:
     """
         Write prediction results to output file (either .json or .txt depending 
         on the file extension in the provided file name)
@@ -189,6 +190,7 @@ def write_results(ofile_path: str, probabilities: np.ndarray, model_: str) -> No
             probabilities (np.ndarray): probabilities of protein being secreted
             model_ (str): the selected combination of models, by default it is 
                           the ensemble model consisting of model_G1, model_G2 and model_G3
+            true_labels (List[int]): list containing the true labels of the input protein sequences
             
         Returns:
             None
@@ -197,7 +199,18 @@ def write_results(ofile_path: str, probabilities: np.ndarray, model_: str) -> No
     labels = (probabilities >= DECISION_THRESHOLD).astype(bool)
     
     file_path, file_ext = os.path.splitext(ofile_path)
-    
+
+    # If true labels are present then compute all kinds of evaluation metrics
+    try:
+        if true_labels is not None:
+            evaluation_metrics(file_path, y_pred=labels.astype(int).tolist(), y_true=true_labels, y_probas=probabilities)
+    except Exception as e:
+        print("\n\nThere seems to be an error with your file containing the comma-separated labels")
+        print("The evaluation metrics therefore could not be computed!")
+        print("Please check the synatx of your file and whether there are as many labels as there are protein sequences.")
+        print("ERROR MESSAGE: ", str(e), "\n\n")
+
+    # Write prediction results to file
     if ".json" not in file_ext and ".txt" not in file_ext:
         ofile_path = file_path + ".txt"
     with open(ofile_path, 'w') as ofile:
@@ -217,3 +230,42 @@ def write_results(ofile_path: str, probabilities: np.ndarray, model_: str) -> No
             for seqNo, lab, proba in zip(range(len(labels)), labels, probabilities):
                 results += '> ' + str(seqNo) + ', ' + str(lab) + ', ' + str(round(proba, 3)) + '\n'
             ofile.write(results[:-1])
+
+
+def evaluation_metrics(file_path: str, y_pred: List[int], y_true: List[int], y_probas: List[float]) -> None:
+    """
+        Compute all kinds of metrics and save them to .json-file
+
+        Args:
+            file_path (str): path where to save metrics file
+            y_pred (List[int]): predicted labels
+            y_true (List[int]): true labels
+            y_probas (List[float]): probabilities instead of actual labels
+
+        Returns:
+            None
+    """
+    # Compute metrics
+    metrics_dict = {
+        'accuracy': metrics.accuracy_score(y_true, y_pred),
+        'precision': metrics.precision_score(y_true, y_pred),
+        'recall': metrics.recall_score(y_true, y_pred),
+        'f1_score': metrics.f1_score(y_true, y_pred),
+        'roc_auc': metrics.roc_auc_score(y_true, y_pred),
+        'log_loss': metrics.log_loss(y_true, y_pred),
+        'confusion_matrix': metrics.confusion_matrix(y_true, y_pred).tolist()
+    }
+
+    # Compute ROC curve
+    fpr, tpr, _ = metrics.roc_curve(y_true, y_probas)
+    roc_curve_dict = {'fpr': fpr.tolist(), 'tpr': tpr.tolist()}
+    metrics_dict['roc_curve'] = roc_curve_dict
+
+    # Compute Precision-Recall curve
+    precision, recall, _ = metrics.precision_recall_curve(y_true, y_probas)
+    pr_curve_dict = {'precision': precision.tolist(), 'recall': recall.tolist()}
+    metrics_dict['precision_recall_curve'] = pr_curve_dict
+
+    # Save metrics to a JSON file
+    with open(file_path + '_metrics.json', 'w') as ofile:
+        json.dump(metrics_dict, ofile)

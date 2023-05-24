@@ -56,6 +56,14 @@ CPU_CORES_HELP = """(Optional) The number of CPU-cores that you want to use for 
 If your selected number of cores is above the available number of cores you will be provided with the
 number of accessible CPU-cores on your operating system, to provide a valid choice the this parameter."""
 
+
+TRUE_LABELS_HELP = """"Path to the file containing the comma-separated true labels encoded as integers (0 for False (not-secreted) and 1 for True (secreted)).
+The labels must be in the same order as the protein sequences contained in the input fasta-file. If this command line parameter is set, i.e. not None
+then an additional file ("{output_file_name_as_set_in_the_command_line_argument}_metrics.json") containing all kinds of evaluation metrics for the prediction will be saved.
+So the json-file containing the evaluation metrics will be saved inside the same path as the outputfile name containing only the predictions but with "_metrics.json"
+concatenated to the filename.
+"""
+
 ##
 
 
@@ -82,6 +90,10 @@ def parse_args():
     # Number of cores to use for prediction
     parser.add_argument('-c', '--cores', choices=list(range(1, CPU_COUNT+1)), required=False, type=int, default=CPU_COUNT,
                         help=CPU_CORES_HELP)
+    
+    # True labels
+    parser.add_argument('-l', '--truelabels', required=False, type=str, default=None,
+                        help=TRUE_LABELS_HELP)
 
     # Program version
     parser.add_argument('-v', '--version', action='version', version='bastion3clone ' + __version__,
@@ -103,12 +115,12 @@ def start(pargs):
     start = time.time()
     predictor(fasta_file=pargs.file, pssm_folder=pargs.path,
               num_cores=pargs.cores, ofile_path=pargs.ofile, 
-              model_=pargs.model, seq_range=None)
+              model_=pargs.model, seq_range=None, true_labels_file_name=pargs.truelabels)
     print(f"\nPrediction took {convert_seconds(time.time() - start)}\n")
 
 
 def main():
-    #try:
+    try:
         # Start program
         args = parse_args()
         start(args)
@@ -116,9 +128,9 @@ def main():
         print('Successful execution of the program!')
         print('\n--> Please find the results here: ' + file_path)
         sys.exit(0)
-    #except Exception as e:
-    #    print('Program ran into an error: ', str(e))
-    #    sys.exit(0)
+    except Exception as e:
+        print('Program ran into an error: ', str(e))
+        sys.exit(0)
 
 
 

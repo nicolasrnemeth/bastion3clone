@@ -108,7 +108,7 @@ class Trainer(object):
             return final_classifier, optimized_hyperparameters
         
         
-        def __collect_params_from_config_file(self, step_one: bool) -> dict:
+        def __collect_params_from_config_file(self, step_two: bool) -> dict:
             """
                 Collect the parameters from the training_config.yaml file.
                 Parameters which are not set or missspelled will be assigned a default value.
