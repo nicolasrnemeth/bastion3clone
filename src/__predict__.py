@@ -62,6 +62,15 @@ The labels must be in the same order as the protein sequences contained in the i
 then an additional file ("{output_file_name_as_set_in_the_command_line_argument}_metrics.json") containing all kinds of evaluation metrics for the prediction will be saved.
 So the json-file containing the evaluation metrics will be saved inside the same path as the outputfile name containing only the predictions but with "_metrics.json"
 concatenated to the filename.
+
+E.g. if you have 10 protein sequences the first then your labels file should contain the following:
+
+1,1,0,1,0,0,0,1,0,0
+
+assuming you have 4 secreted and 6 non-secreted proteins in the exact same order.
+
+There must be no spaces in between the commas and trailing commas
+
 """
 
 ##
