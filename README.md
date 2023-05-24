@@ -23,6 +23,7 @@ install locally:
 ## Commands available by the program (check help description by running below commands)
 
 > bastion3clone --help
+
 > trainmodel --help
 
 The 1. command is used for prediction. 
