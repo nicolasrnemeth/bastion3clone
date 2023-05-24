@@ -65,7 +65,7 @@ def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str
     # Write results to file
     true_labels = None
     if true_labels_file_name is not None:
-        with open(true_labels_file_name, 'r') as ifile:
+        with open(true_labels_file_name, 'w') as ifile:
             true_labels = [int(l) for l in ifile.read().split(",")]
     # Write results to file
     write_results(ofile_path, np.array(probabilities), model_, true_labels=true_labels)
