@@ -1,3 +1,0 @@
-[console_scripts]
-bastion3clone = src.__predict__:main
-trainmodel = src.__train__:main
