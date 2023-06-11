@@ -8,7 +8,7 @@ import numpy as np
 # Parallelize feature computation and prediction
 from multiprocessing import Process, Manager
 from typing import Tuple, List, Callable
-from sklearn import metrics 
+from sklearn import metrics
 
 from .sequtils import read_fasta
 from .encoders.encode import encode
@@ -20,15 +20,15 @@ PARALLELIZATION_THRESHOLD: int = 100
 DECISION_THRESHOLD: float = 0.5
 # String containing all the results
 MODEL_NAMES = {"G1": "sequence-model", "G2": "amino-acid-property-model", "G3": "pssm-model",
-              "G1G2": "sequence-, amino-acid-property-model", "G1G3": "sequence-, pssm-model",
-              "G2G3": "amino-acid-property-, pssm-model", "G1G2G3": "ensemble-model"}
+               "G1G2": "sequence-, amino-acid-property-model", "G1G3": "sequence-, pssm-model",
+               "G2G3": "amino-acid-property-, pssm-model", "G1G2G3": "ensemble-model"}
 
 
-def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str="results.txt", 
-              model_: str="G1G2G3", seq_range: Tuple[int, int]=None, true_labels_file_name: str=None) -> None:
+def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str = "results.txt",
+              model_: str = "G1G2G3", seq_range: Tuple[int, int] = None, true_labels_file_name: str = None) -> None:
     """
         Computes the prediction for protein sequences and writes the results to a .txt file
-        
+
         Args:
             fasta_file (str): input fasta file containing the protein sequences
             pssm_folder (str): path to folder where pssm .txt files are located
@@ -42,7 +42,7 @@ def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str
                              that the overhead of initializing and running multiple processes only
                              justifies when the data is large enough. Is only used when number of
                              protein sequences exceeds PARALLELIZATION_THRESHOLD, otherwise this parameter is ignored
-                                         
+
         Returns:
             None
     """
@@ -58,7 +58,8 @@ def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str
         # Encode protein sequences into numerical features
         predict_args = [pssm_folder, seq_range, model_]
         # Run processes in parallel
-        probabilities = parallelize(predict, predict_args, data_splits, num_cores)
+        probabilities = parallelize(
+            predict, predict_args, data_splits, num_cores)
     # run on a single core
     else:
         probabilities = predict(fastas, pssm_folder, seq_range, model_)
@@ -68,11 +69,11 @@ def predictor(fasta_file: str, pssm_folder: str, num_cores: int, ofile_path: str
         with open(true_labels_file_name, 'r') as ifile:
             true_labels = [int(l) for l in ifile.read().split(",")]
     # Write results to file
-    write_results(ofile_path, np.array(probabilities), model_, true_labels=true_labels)
-    
-    
+    write_results(ofile_path, np.array(probabilities),
+                  model_, true_labels=true_labels)
 
-def parallelize(worker: Callable, args: List, 
+
+def parallelize(worker: Callable, args: List,
                 data_split: List[np.ndarray], num_cores: int) -> List:
     """
         Parallelizes the execution of a task on several data splits, such
@@ -83,7 +84,7 @@ def parallelize(worker: Callable, args: List,
             args (List): list of arguments passed to the worker in the Process
             data_split (List[np.ndarray]): the data splits to be executed on different cpu cores
             num_cores (int): number of parallel tasks to execute
-            
+
         Returns:
             List containing the concatenated results of each
             tasks in the original order they were input in
@@ -91,33 +92,33 @@ def parallelize(worker: Callable, args: List,
     with Manager() as manager:
         # Dictionary containing the result of each process
         results_processes = manager.dict()
-    
+
         process_ids = [uuid.uuid4() for _ in range(num_cores)]
         processes = list()
         for pid, split in zip(process_ids, data_split):
-            p = Process(target=worker, args=tuple([split] + args + [results_processes, pid]))
+            p = Process(target=worker, args=tuple(
+                [split] + args + [results_processes, pid]))
             processes.append(p)
             p.start()
 
         # Ensure processes complete before continuing execution
         for p in processes:
             p.join()
-        
+
         # Join the results preserving the original order
         output = list()
         for pid in process_ids:
             output += list(results_processes.get(pid))
-    # Return accumulated result from 
+    # Return accumulated result from
     return output
 
 
-
-def predict(fastas: np.ndarray, pssm_folder: str, seq_range: Tuple[int, int], 
-            model_: str, results_dict: dict=None, process_id: str=None) -> List[float]:
+def predict(fastas: np.ndarray, pssm_folder: str, seq_range: Tuple[int, int],
+            model_: str, results_dict: dict = None, process_id: str = None) -> List[float]:
     """
         Encodes protein sequences, computes the prediction probability
         and determines the ensemble prediction for all chosen models
-        
+
         Args: 
             fastas (np.ndarray): array containing the protein sequences
             pssm_folder (str): folder containing the pssm .txt files
@@ -125,14 +126,15 @@ def predict(fastas: np.ndarray, pssm_folder: str, seq_range: Tuple[int, int],
             model_ (str): the selected models
             results_dict (dict): the dictionary the results from the
                                  multiple processes are written to
-                                 
+
         Returns:
             None
     """
-    names, sequence_enc, aaprop_enc, pssm_enc = encode(fastas, pssm_folder, seq_range, model_)
-    
+    names, sequence_enc, aaprop_enc, pssm_enc = encode(
+        fastas, pssm_folder, seq_range, model_)
+
     model_g1, model_g2, model_g3 = load_models()
-    
+
     # Probability for positive label, i.e. secreted protein
     probas_g1, probas_g2, probas_g3 = [np.zeros(len(names))[:, None]]*3
     if "G1" in model_:
@@ -153,18 +155,18 @@ def predict(fastas: np.ndarray, pssm_folder: str, seq_range: Tuple[int, int],
         weights[2] = 2
 
     # Probability of single model or combined models as provided by ´model_´ parameter
-    probas = np.hstack((probas_g1, probas_g2, probas_g3)) @ weights / sum(weights)
-    
+    probas = np.hstack((probas_g1, probas_g2, probas_g3)
+                       ) @ weights / sum(weights)
+
     if results_dict is not None and process_id is not None:
         results_dict[process_id] = probas
-        
+
     return probas
 
 
-        
 def load_models() -> Tuple[object, object, object]:
     # Load trained models
-    try: 
+    try:
         with open(os.path.join("src", "models", "model_G1.bin"), 'rb') as ifile:
             model_g1 = pickle.load(ifile)
         with open(os.path.join("src", "models", "model_G2.bin"), 'rb') as ifile:
@@ -181,38 +183,37 @@ def load_models() -> Tuple[object, object, object]:
     return model_g1, model_g2, model_g3
 
 
-
-def write_results(ofile_path: str, probabilities: np.ndarray, model_: str, true_labels: List[int]=None) -> None:
+def write_results(ofile_path: str, probabilities: np.ndarray, true_labels: List[int] = None) -> None:
     """
         Write prediction results to output file (either .json or .txt depending 
         on the file extension in the provided file name)
         Decision threshold for prediction is DECISION_THRESHOLD: 
             larger-equal than DECISION_THRESHOLD -> positive (secreted)
             smaller than DECISION_THRESHOLD -> negative (not secreted)
-            
+
         Args:
             ofile_path (str): path of the output file containing the prediction results
             probabilities (np.ndarray): probabilities of protein being secreted
-            model_ (str): the selected combination of models, by default it is 
-                          the ensemble model consisting of model_G1, model_G2 and model_G3
             true_labels (List[int]): list containing the true labels of the input protein sequences
-            
+
         Returns:
             None
     """
     # np.ndarray containing the boolean labels for each protein sequence
-    labels = (probabilities >= DECISION_THRESHOLD).astype(bool)
-    
+    labels = (probabilities >= DECISION_THRESHOLD).astype(bool).flatten()
+    probabilities = probabilities.flatten()
+
     file_path, file_ext = os.path.splitext(ofile_path)
 
     # If true labels are present then compute all kinds of evaluation metrics
     try:
         if true_labels is not None:
-            evaluation_metrics(file_path, y_pred=labels.astype(int).tolist(), y_true=true_labels, y_probas=probabilities)
+            evaluation_metrics(file_path, y_pred=labels.astype(int).tolist(),
+                               y_true=true_labels, y_probas=probabilities)
     except Exception as e:
         print("\n\nThere seems to be an error with your file containing the comma-separated labels")
         print("The evaluation metrics therefore could not be computed!")
-        print("Please check the synatx of your file and whether there are as many labels as there are protein sequences.")
+        print("Please check the syntax of your file and whether there are as many labels as there are protein sequences.")
         print("ERROR MESSAGE: ", str(e), "\n\n")
 
     # Write prediction results to file
@@ -220,7 +221,8 @@ def write_results(ofile_path: str, probabilities: np.ndarray, model_: str, true_
         ofile_path = file_path + ".txt"
     with open(ofile_path, 'w') as ofile:
         if ".json" in re.split(r'[/\\]', ofile_path)[-1]:
-            results_dict = {str(key): dict(label=str(lab), probability=round(prob, 3)) for key, lab, prob in zip(range(len(labels)), labels, probabilities)}
+            results_dict = {str(key): dict(label=bool(lab), probability=float(round(prob, 3)))
+                            for key, lab, prob in zip(range(len(labels)), labels, probabilities)}
             json.dump(results_dict, ofile, indent=4)
         else:
             dashes = "-"*30
@@ -228,12 +230,12 @@ def write_results(ofile_path: str, probabilities: np.ndarray, model_: str, true_
             results += str(sum(labels)) + " pos. / " + \
                 str(len(labels)-sum(labels))
             results += " neg.  --> " + \
-                str(round(sum(labels)/len(labels)*100, 4)) + \
+                str(np.round(sum(labels)/len(labels)*100, 4)) + \
                 f" % positives\n{dashes}\n\n"
             results += "sequence number, prediction by " + \
-                MODEL_NAMES[model_] + f", probability\n{dashes}\n"
+                "Effective T3" + f", probability\n{dashes}\n"
             for seqNo, lab, proba in zip(range(len(labels)), labels, probabilities):
-                results += '> ' + str(seqNo) + ', ' + str(lab) + ', ' + str(round(proba, 3)) + '\n'
+                results += f"> {str(seqNo)} , {bool(lab)} , {str(round(proba, 3))} \n"
             ofile.write(results[:-1])
 
 
@@ -268,7 +270,8 @@ def evaluation_metrics(file_path: str, y_pred: List[int], y_true: List[int], y_p
 
     # Compute Precision-Recall curve
     precision, recall, _ = metrics.precision_recall_curve(y_true, y_probas)
-    pr_curve_dict = {'precision': precision.tolist(), 'recall': recall.tolist()}
+    pr_curve_dict = {'precision': precision.tolist(),
+                     'recall': recall.tolist()}
     metrics_dict['precision_recall_curve'] = pr_curve_dict
 
     # Save metrics to a JSON file

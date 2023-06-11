@@ -1,0 +1,7 @@
+build/**
+bastion3clone.egg-info
+**/.vscode
+**/__pycache__/
+**/.ipynb_checkpoints/
+model_data_trained_on_513_dimensional_feature_vectors
+collected_feat_imp
