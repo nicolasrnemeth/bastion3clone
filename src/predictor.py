@@ -183,7 +183,7 @@ def load_models() -> Tuple[object, object, object]:
     return model_g1, model_g2, model_g3
 
 
-def write_results(ofile_path: str, probabilities: np.ndarray, true_labels: List[int] = None) -> None:
+def write_results(ofile_path: str, probabilities: np.ndarray, model_: str, true_labels: List[int] = None) -> None:
     """
         Write prediction results to output file (either .json or .txt depending 
         on the file extension in the provided file name)
@@ -194,26 +194,27 @@ def write_results(ofile_path: str, probabilities: np.ndarray, true_labels: List[
         Args:
             ofile_path (str): path of the output file containing the prediction results
             probabilities (np.ndarray): probabilities of protein being secreted
+            model_ (str): the selected combination of models, by default it is 
+                          the ensemble model consisting of model_G1, model_G2 and model_G3
             true_labels (List[int]): list containing the true labels of the input protein sequences
 
         Returns:
             None
     """
     # np.ndarray containing the boolean labels for each protein sequence
-    labels = (probabilities >= DECISION_THRESHOLD).astype(bool).flatten()
-    probabilities = probabilities.flatten()
+    labels = (probabilities >= DECISION_THRESHOLD).astype(bool)
 
     file_path, file_ext = os.path.splitext(ofile_path)
 
     # If true labels are present then compute all kinds of evaluation metrics
     try:
         if true_labels is not None:
-            evaluation_metrics(file_path, y_pred=labels.astype(int).tolist(),
-                               y_true=true_labels, y_probas=probabilities)
+            evaluation_metrics(file_path, y_pred=labels.astype(
+                int).tolist(), y_true=true_labels, y_probas=probabilities)
     except Exception as e:
         print("\n\nThere seems to be an error with your file containing the comma-separated labels")
         print("The evaluation metrics therefore could not be computed!")
-        print("Please check the syntax of your file and whether there are as many labels as there are protein sequences.")
+        print("Please check the synatx of your file and whether there are as many labels as there are protein sequences.")
         print("ERROR MESSAGE: ", str(e), "\n\n")
 
     # Write prediction results to file
@@ -221,8 +222,8 @@ def write_results(ofile_path: str, probabilities: np.ndarray, true_labels: List[
         ofile_path = file_path + ".txt"
     with open(ofile_path, 'w') as ofile:
         if ".json" in re.split(r'[/\\]', ofile_path)[-1]:
-            results_dict = {str(key): dict(label=bool(lab), probability=float(round(prob, 3)))
-                            for key, lab, prob in zip(range(len(labels)), labels, probabilities)}
+            results_dict = {str(key): dict(label=str(lab), probability=round(
+                prob, 3)) for key, lab, prob in zip(range(len(labels)), labels, probabilities)}
             json.dump(results_dict, ofile, indent=4)
         else:
             dashes = "-"*30
@@ -230,12 +231,13 @@ def write_results(ofile_path: str, probabilities: np.ndarray, true_labels: List[
             results += str(sum(labels)) + " pos. / " + \
                 str(len(labels)-sum(labels))
             results += " neg.  --> " + \
-                str(np.round(sum(labels)/len(labels)*100, 4)) + \
+                str(round(sum(labels)/len(labels)*100, 4)) + \
                 f" % positives\n{dashes}\n\n"
             results += "sequence number, prediction by " + \
-                "Effective T3" + f", probability\n{dashes}\n"
+                MODEL_NAMES[model_] + f", probability\n{dashes}\n"
             for seqNo, lab, proba in zip(range(len(labels)), labels, probabilities):
-                results += f"> {str(seqNo)} , {bool(lab)} , {str(round(proba, 3))} \n"
+                results += '> ' + str(seqNo) + ', ' + str(lab) + \
+                    ', ' + str(round(proba, 3)) + '\n'
             ofile.write(results[:-1])
 
 
